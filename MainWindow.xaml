@@ -83,14 +83,14 @@
                                         <ColumnDefinition/>
                                     </Grid.ColumnDefinitions>
                                     <Label Grid.Row="0">Rows:</Label>
-                                    <Slider Name="RowsSlider" Grid.Row="1" Style="{StaticResource sliderRCStyle}" ValueChanged="SettingsChanged"/>
+                                    <Slider Name="RowsSlider" Grid.Row="1" Style="{StaticResource sliderRCStyle}" ValueChanged="ControlsChanged"/>
                                     <Label Grid.Row="0" Grid.Column="1">Columns:</Label>
-                                    <Slider Name="ColsSlider" Grid.Row="1" Grid.Column="1" Style="{StaticResource sliderRCStyle}" ValueChanged="SettingsChanged"/>
+                                    <Slider Name="ColsSlider" Grid.Row="1" Grid.Column="1" Style="{StaticResource sliderRCStyle}" ValueChanged="ControlsChanged"/>
 
                                     <Label Grid.Row="2" HorizontalAlignment="Left">Anchor Y:</Label>
-                                    <Slider Name="AnchorY" Style="{StaticResource sliderAXYStyle}" Grid.Row="3" ValueChanged="SettingsChanged"/>
+                                    <Slider Name="AnchorY" Style="{StaticResource sliderAXYStyle}" Grid.Row="3" ValueChanged="ControlsChanged"/>
                                     <Label Grid.Row="2"  Grid.Column="1" HorizontalAlignment="Left">Anchor X:</Label>
-                                    <Slider Name="AnchorX" Style="{StaticResource sliderAXYStyle}" Grid.Row="3" Grid.Column="1" ValueChanged="SettingsChanged"/>
+                                    <Slider Name="AnchorX" Style="{StaticResource sliderAXYStyle}" Grid.Row="3" Grid.Column="1" ValueChanged="ControlsChanged"/>
                                 </Grid>
                                 <Grid Name="KernelTable" Grid.Row="1" Width="Auto"/>
                                 <Grid Name="SettingsGrid" Grid.Row="2">

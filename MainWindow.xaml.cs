@@ -191,6 +191,7 @@ namespace _CG_Filters
         private void ApplyFilterBtnClick(object sender, RoutedEventArgs e)
         {
             //custom filter || predefined filter changed || custom filter in use
+            //then just get the values from the gui and replace the current kernel with it 
             if (checkedCustom == true || tableChanged || checkedNew == true)
             {
                 int[] values = ValuesFromTable();
@@ -266,18 +267,13 @@ namespace _CG_Filters
                 errors.Remove(t);
 
                 setError(tb, false);
-                //if (errors.Count==0) ComputeBtn.IsEnabled = true;
                 tableChanged = true;
             }
             else
             {
-                
                 if (!errors.Contains(t)) errors.Add(t);
                 setError(tb, true);
-                //if (errors.Count>0) ComputeBtn.IsEnabled = false;
             }
-            Console.WriteLine(errors);
-
         }
 
         private int[] ValuesFromTable()
@@ -293,16 +289,16 @@ namespace _CG_Filters
             return values;
         }
 
-        private void SettingsChanged(object sender, RoutedEventArgs e)
+        private void ControlsChanged(object sender, RoutedEventArgs e)
         {
             //changing the predefined kernel accroding to the kernel algorithm
-            if (settingsUserChange && checkedNew == false && checkedCustom == false)
+            if (settingsUserChange && checkedNew == false && checkedCustom == false && tableChanged == false)
             {
                 kernelFactory.Refactor(ref currentKernel, (int)ColsSlider.Value, (int)RowsSlider.Value, (int)AnchorX.Value, (int)AnchorY.Value, int.Parse(Offset.Text), int.Parse(Divisor.Text));
                 DisplayKernel(currentKernel);
             }
             //changing custom kernel
-            else if ((checkedCustom == true || checkedNew == true) && settingsUserChange)
+            else if ((checkedCustom == true || checkedNew == true || tableChanged == true) && settingsUserChange)
             {
                 DisplayKernel(ValuesFromTable());
             }
@@ -346,7 +342,7 @@ namespace _CG_Filters
             if (tb.Text != null && Decimal.TryParse(tb.Text, out res))
             {
                 setError(tb, false);
-                if (settingsUserChange && checkedNew == false && checkedCustom==false)
+                if (settingsUserChange && checkedNew == false && checkedCustom==false && tableChanged == false)
                 {
                     kernelFactory.Refactor(ref currentKernel, (int)ColsSlider.Value, (int)RowsSlider.Value, (int)AnchorX.Value, (int)AnchorY.Value, int.Parse(Offset.Text), int.Parse(Divisor.Text));
                 }
@@ -384,13 +380,9 @@ namespace _CG_Filters
             ConvFilters.Children.Add(checkBox);
         }
 
-        private void DisplayKernel(object o)
+        private int[] setControls(object o, ref int col, ref int row, ref int anchorx, ref int anchory, ref bool larger)
         {
-            int col, row, anchorx, anchory;
             int[] values;
-            bool larger=false;
-
-
             if (o is Kernel kernel)
             {
                 col = (int)kernel.SizeX;
@@ -417,7 +409,7 @@ namespace _CG_Filters
                 else larger = true;
             }
 
-            
+
 
             settingsUserChange = false;
             AnchorX.Value = anchorx;
@@ -426,6 +418,16 @@ namespace _CG_Filters
             AnchorX.Maximum = col - 1;
             AnchorY.Maximum = row - 1;
             settingsUserChange = true;
+
+            return values;
+        }
+
+        private void DisplayKernel(object o)
+        {
+            int col=0, row=0, anchorx=0, anchory=0;
+            bool larger=false;
+
+            int[] values=setControls(o, ref col, ref row, ref anchorx, ref anchory, ref larger);
 
             KernelTable.Children.Clear();
             KernelTable.RowDefinitions.Clear();
