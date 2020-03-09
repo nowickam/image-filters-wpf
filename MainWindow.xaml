@@ -48,6 +48,10 @@
                         <Button Name="InvCB" Click="InvCB_Checked" >Inversion</Button>
                         <Button Name="BrightCB" Click="BrightCB_Checked" >Brightness correction</Button>
                         <Button Name="GammaCB"  Click="GammaCB_Checked" >Gamma correction</Button>
+                        <DockPanel Name="GammaPanel" Visibility="Collapsed"  Margin="5">
+                            <TextBox Name="GammaText" TextChanged="GammaTextChange" Margin="2" Width="150"/>
+                            <Button Name="GammaButton" Click="GammaApply" Margin="2" >Apply</Button>
+                        </DockPanel>
                         <Button Name="ContrCB" Click="ContrCB_Checked" >Contrast enhacement</Button>
                     </StackPanel>
                 </Expander>

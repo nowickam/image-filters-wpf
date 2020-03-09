@@ -27,12 +27,16 @@ namespace _CG_Filters
         private string name;
         private int height, width, stride;
         private byte[] pixels;
+
         private KernelFactory kernelFactory;
         private Kernel currentKernel;
         private List<Kernel> kernelList;
+
         private static bool checkedCustom, checkedNew;
         private bool settingsUserChange;
-        private bool tableChanged;
+        private bool tableChanged, gammaCorrect;
+
+
         private List<Tuple<int,int>> errors;
 
         public MainWindow()
@@ -108,6 +112,7 @@ namespace _CG_Filters
 
             CustomConv.Visibility = Visibility.Collapsed;
             CustomConvBorder.Visibility = Visibility.Collapsed;
+            GammaPanel.Visibility = Visibility.Collapsed;
 
             currentImg.CopyPixels(pixels, stride, 0);
             editedImg.WritePixels(new Int32Rect(0, 0, width, height), pixels, stride, 0);
@@ -150,11 +155,37 @@ namespace _CG_Filters
             }
         }
 
+        private void GammaTextChange(object sender, TextChangedEventArgs e)
+        {
+            TextBox tb = (TextBox)e.Source;
+            Decimal res;
+            bool parsed = Decimal.TryParse(tb.Text, out res);
+            if (tb.Text == null || !parsed)
+            {
+                setError(tb, true);
+                gammaCorrect = false;
+            }
+            else
+            {
+                setError(tb, false);
+                gammaCorrect = true;
+            }
+        }
+
         private void GammaCB_Checked(object sender, RoutedEventArgs e)
         {
             if (editedImg != null)
             {
-                double gamma = 1 / 2.2;
+                GammaPanel.Visibility = Visibility.Visible;
+                GammaText.Text = (0.45).ToString();
+            }
+        }
+
+        private void GammaApply(object sender, RoutedEventArgs e)
+        {
+            if (editedImg != null && gammaCorrect)
+            {
+                double gamma = double.Parse(GammaText.Text);
                 editedImg.CopyPixels(pixels, stride, 0);
                 for (int i = 0; i < pixels.Length; i += 4)
                 {
@@ -408,8 +439,6 @@ namespace _CG_Filters
                 if (values != null && (values[0] > col || ((values.Length - 1) / values[0]) > row)) larger = false;
                 else larger = true;
             }
-
-
 
             settingsUserChange = false;
             AnchorX.Value = anchorx;

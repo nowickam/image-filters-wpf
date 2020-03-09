@@ -256,7 +256,7 @@ namespace _CG_Filters
         }
         public override Kernel Refactor(int sizex, int sizey, int anchorx, int anchory, int offset, int divisor)
         {
-            throw new NotImplementedException();
+            return this;
         }
     }
 
