@@ -34,10 +34,10 @@ namespace _CG_Filters
 
         private static bool checkedCustom, checkedNew;
         private bool settingsUserChange;
-        private bool tableChanged, gammaCorrect;
+        private bool tableChanged, gammaError, ditheringError, medianError, grayscale;
 
 
-        private List<Tuple<int,int>> errors;
+        private List<Tuple<int, int>> errors;
 
         public MainWindow()
         {
@@ -48,6 +48,8 @@ namespace _CG_Filters
             checkedNew = false;
             settingsUserChange = false;
             tableChanged = false;
+            grayscale = false;
+            ditheringError = false;
             errors = new List<Tuple<int, int>>();
         }
 
@@ -72,6 +74,10 @@ namespace _CG_Filters
                 tableChanged = false;
                 checkedCustom = false;
                 checkedNew = false;
+                grayscale = false;
+                ditheringError = false;
+                gammaError = false;
+                medianError = false;
 
                 SaveBtn.IsEnabled = true;
                 ResetBtn.IsEnabled = true;
@@ -104,15 +110,22 @@ namespace _CG_Filters
             checkedCustom = false;
             checkedNew = false;
             tableChanged = false;
-    
+            grayscale = false;
+
             ComputeBtn.IsEnabled = true;
             SaveFilterBtn.IsEnabled = true;
             ApplyFilterBtn.IsEnabled = true;
+
             errors.Clear();
+            ditheringError = false;
+            medianError = false;
+            gammaError = false;
 
             CustomConv.Visibility = Visibility.Collapsed;
             CustomConvBorder.Visibility = Visibility.Collapsed;
-            GammaPanel.Visibility = Visibility.Collapsed;
+            GammaBorder.Visibility = Visibility.Collapsed;
+            DitheringBorder.Visibility = Visibility.Collapsed;
+            MedianBorder.Visibility = Visibility.Collapsed;
 
             currentImg.CopyPixels(pixels, stride, 0);
             editedImg.WritePixels(new Int32Rect(0, 0, width, height), pixels, stride, 0);
@@ -163,12 +176,12 @@ namespace _CG_Filters
             if (tb.Text == null || !parsed)
             {
                 setError(tb, true);
-                gammaCorrect = false;
+                gammaError = true;
             }
             else
             {
                 setError(tb, false);
-                gammaCorrect = true;
+                gammaError = false;
             }
         }
 
@@ -176,14 +189,14 @@ namespace _CG_Filters
         {
             if (editedImg != null)
             {
-                GammaPanel.Visibility = Visibility.Visible;
+                GammaBorder.Visibility = Visibility.Visible;
                 GammaText.Text = (0.45).ToString();
             }
         }
 
         private void GammaApply(object sender, RoutedEventArgs e)
         {
-            if (editedImg != null && gammaCorrect)
+            if (editedImg != null && gammaError)
             {
                 double gamma = double.Parse(GammaText.Text);
                 editedImg.CopyPixels(pixels, stride, 0);
@@ -271,7 +284,7 @@ namespace _CG_Filters
                     else
                     {
                         //values of sliders=3
-                        currentKernel = kernelFactory.Create(((Button)e.Source).Name, (int)ColsSlider.Value, (int)RowsSlider.Value, (int)ColsSlider.Value/2, (int)RowsSlider.Value/2, 0, 0);
+                        currentKernel = kernelFactory.Create(((Button)e.Source).Name, (int)ColsSlider.Value, (int)RowsSlider.Value, (int)ColsSlider.Value / 2, (int)RowsSlider.Value / 2, 0, 0);
                     }
                     DisplayKernel(currentKernel);
                 }
@@ -282,6 +295,299 @@ namespace _CG_Filters
                 }
                 CustomConv.Visibility = Visibility.Visible;
                 CustomConvBorder.Visibility = Visibility.Visible;
+            }
+        }
+
+        private void DitheringBtn_Click(object sender, RoutedEventArgs e)
+        {
+            if (editedImg != null)
+            {
+                DitheringBorder.Visibility = Visibility.Visible;
+                AddChannels();
+            }
+        }
+
+        private void PowerOfTwoCheck(object sender, TextChangedEventArgs e)
+        {
+            TextBox tb = (TextBox)e.Source;
+            int res;
+            bool parsed = int.TryParse(tb.Text, out res);
+            if (tb.Text == null || !parsed || (res & (res - 1)) != 0)
+            {
+                setError(tb, true);
+                if (tb.Name != "MedianColorNo") ditheringError = true;
+                else medianError = true;
+            }
+            else
+            {
+                setError(tb, false);
+                if (tb.Name != "MedianColorNo") ditheringError = false;
+                else medianError = false;
+            }
+        }
+
+        private void AddChannels()
+        {
+            ChannelsContainer.Children.Clear();
+            int count = 0;
+            if (grayscale) count = 1;
+            else count = 3;
+            for (int i = 0; i < count; i++)
+            {
+                TextBox txt = new TextBox();
+                txt.MinWidth = 20;
+                txt.Height = 20;
+                txt.TextAlignment = TextAlignment.Center;
+                txt.TextChanged += PowerOfTwoCheck;
+                Label l = new Label();
+                l.FontSize = 10;
+                if (grayscale) { l.Content = "B/W"; }
+                else { switch (i) { case 0: l.Content = "R"; break; case 1: l.Content = "G"; break; case 2: l.Content = "B"; break; default: break; } }
+                ChannelsContainer.Children.Add(l);
+                ChannelsContainer.Children.Add(txt);
+            }
+        }
+
+        private void GrayscaleBtn_Click(object sender, RoutedEventArgs e)
+        {
+            if (editedImg != null)
+            {
+                editedImg.CopyPixels(pixels, stride, 0);
+                for (int i = 0; i < pixels.Length; i += 4)
+                {
+                    int val = (pixels[i] + pixels[i + 1] + pixels[i + 2]) / 3;
+                    pixels[i] = (byte)(val);
+                    pixels[i + 1] = (byte)(val);
+                    pixels[i + 2] = (byte)(val);
+                }
+                editedImg.WritePixels(new Int32Rect(0, 0, width, height), pixels, stride, 0);
+                grayscale = true;
+                AddChannels();
+            }
+        }
+
+        private void findBreakpoint(int levels, int rgb, int start, int end, ref List<double> breakpoints)
+        {
+            if (levels < 1)
+            {
+                //Console.WriteLine("STOP: " + levels);
+                return;
+            }
+            else
+            {
+                //Console.WriteLine("LEVEL: " + levels + "start,stop: "+start+" "+end);
+                int sum = 0, count = 0;
+                for (int i = rgb; i < pixels.Length; i += 4)
+                {
+                    if (pixels[i] < end && pixels[i] >= start)
+                    {
+                        sum += pixels[i];
+                        count++;
+                    }
+                }
+                sum = (int)(1.0 * sum / count);
+                breakpoints.Add(sum);
+                //Console.WriteLine(sum);
+                levels--;
+                findBreakpoint(levels, rgb, start, sum, ref breakpoints);
+                findBreakpoint(levels, rgb, sum, end, ref breakpoints);
+            }
+        }
+
+        private void ApplyDithering_Click(object sender, RoutedEventArgs e)
+        {
+            if (editedImg != null && !ditheringError)
+            {
+                editedImg.CopyPixels(pixels, stride, 0);
+
+                int colors_count = ChannelsContainer.Children.Count / 2;
+                List<List<double>> breakpoints = new List<List<double>>();
+                int[] dithering_channels = new int[colors_count];
+                int levels;
+                for (int i = 0; i < colors_count; i++)
+                {
+                    int res;
+                    if (int.TryParse(((TextBox)ChannelsContainer.Children[2 * i + 1]).Text, out res))
+                        dithering_channels[i] = res;
+                    else return;
+                    List<double> l = new List<double>();
+                    //depth of the recursion tree
+                    levels = (int)(Math.Log(dithering_channels[i], 2));
+                    //2-i because of bgra format
+                    findBreakpoint(levels, 2 - i, 0, 256, ref l);
+                    l.Sort();
+                    l.Add(255);
+                    breakpoints.Add(l);
+                }
+
+                for (int i = 0; i < breakpoints.Count; i++)
+                {
+                    Console.WriteLine(breakpoints[i].Count - 1);
+                    for (int j = 0; j < pixels.Length; j++)
+                    {
+                        int k = 0;
+                        while (pixels[j] > breakpoints[i][k])
+                            k++;
+
+                        pixels[j] = (byte)(1.0 * 255 * k / (breakpoints[i].Count - 1));
+                    }
+                }
+
+                editedImg.WritePixels(new Int32Rect(0, 0, width, height), pixels, stride, 0);
+            }
+        }
+
+        private void MedianBtn_Click(object sender, RoutedEventArgs e)
+        {
+            if (editedImg != null)
+            {
+                MedianBorder.Visibility = Visibility.Visible;
+            }
+        }
+
+        private static void swap(ref byte b1, ref byte b2)
+        {
+            byte temp = b1;
+            b1 = b2;
+            b2 = temp;
+        }
+
+        private static bool inCube(byte[] colors, int i, int rs, int re,  int gs, int ge, int bs, int be)
+        {
+            if (colors[i] < be && colors[i] >= bs && colors[i + 1] < ge && colors[i + 1] >= gs && colors[i + 2] < re && colors[i + 2] >= rs)
+                return true;
+            return false;
+        }
+
+        private void medianCut(ref byte[] colorCube, int rs, int re, int gs, int ge, int bs, int be, int cuts, ref int over)
+        {
+            //Console.WriteLine("\nCUTS: " + cuts);
+            //Console.WriteLine("DIMS: " + rs + " " + re + " " + gs + " " + ge + " " + bs + " " + be);
+            if (cuts == 0 && over==0)
+            {
+                //color the boxes
+                //determine the color - average
+                int sumR = 0, sumG = 0, sumB = 0, count = 0,countSum=0;
+                for (int i = 0; i < colorCube.Length; i += 4)
+                {
+                    if (inCube(colorCube, i, rs, re,  gs, ge, bs, be))
+                    {
+                        sumR += colorCube[i + 2];
+                        sumG += colorCube[i + 1];
+                        sumB += colorCube[i];
+                        count++;
+                    }
+                    countSum++;
+                }
+
+                int averageR = (int)(1.0 * sumR / count);
+                int averageG = (int)(1.0 * sumG / count);
+                int averageB = (int)(1.0 * sumB / count);
+
+                
+                //Console.WriteLine("AVERAGES: "+averageR + " " + averageG + " " + averageB);
+                //Console.WriteLine("COUNT COUNTSUM: " + count+" "+countSum);
+
+                for (int i = 0; i < colorCube.Length; i += 4)
+                {
+                    if (inCube(colorCube, i, rs, re,  gs, ge, bs, be))
+                    {
+                        colorCube[i + 2] = (byte)averageR;
+                        colorCube[i + 1] = (byte)averageG;
+                        colorCube[i] = (byte)averageB;
+                    }
+                }
+                //Console.WriteLine("COLOR");
+                return;
+            }
+
+            int minR = 256, minG = 256, minB = 256, maxR = -1, maxB = -1, maxG = -1, ccount=0;
+
+            //search for min and max value in every channel for a color subcube
+            for (int i = 0; i < colorCube.Length; i += 4)
+            {
+                if (inCube(colorCube, i, rs, re, gs, ge, bs, be))
+                {
+                    if (colorCube[i] < minB) minB = colorCube[i];
+                    else if (colorCube[i] > maxB) maxB = colorCube[i];
+
+                    if (colorCube[i + 1] < minG) minG = colorCube[i + 1];
+                    else if (colorCube[i + 1] > maxG) maxG = colorCube[i + 1];
+
+                    if (colorCube[i + 2] < minR) minR = colorCube[i + 2];
+                    else if (colorCube[i + 2] > maxR) maxR = colorCube[i + 2];
+
+                    ccount++;
+                }
+            }
+            //calculate the range
+            int distR = maxR - minR, distB = maxB - minB, distG = maxG - minG;
+            //Console.WriteLine("DIST: " + distR + " " + distG + " " + distB + " ");
+
+            //determine max range
+            int medianChannel;
+            if (distR >= distG && distR >= distB) medianChannel = 2;
+            else if (distG >= distR && distG >= distB) medianChannel = 1;
+            else medianChannel = 0;
+
+            //help sort to get the median
+            List<byte> sortedPixels = new List<byte>();
+            for(int i = 0; i < colorCube.Length; i+=4)
+            {
+                if (inCube(colorCube, i, rs, re, gs, ge, bs, be)) sortedPixels.Add(colorCube[i+medianChannel]);
+            }
+            sortedPixels.Sort();
+
+            //determine the splitting value of the color and alternative colors
+            int medianColor;
+            if (sortedPixels.Count > 0) medianColor = sortedPixels[sortedPixels.Count / 2];
+            else medianColor = 0;
+
+            if(cuts>0)cuts--;
+            if(cuts==0 && over>0)over--;
+            //System.Console.WriteLine("OVER: " + over);
+
+            switch (medianChannel)
+            {
+                case 0:
+                    medianCut(ref colorCube, rs, re, gs, ge, bs, medianColor, cuts, ref over);
+                    medianCut(ref colorCube, rs, re, gs, ge, medianColor, be, cuts, ref over);
+                    break;
+                case 1:
+                    medianCut(ref colorCube, rs, re, gs, medianColor, bs, be, cuts, ref over);
+                    medianCut(ref colorCube, rs, re, bs, be, medianColor, ge, cuts, ref over);
+                    break;
+                case 2:
+                    medianCut(ref colorCube, rs, medianColor, gs, ge, bs, be, cuts, ref over);
+                    medianCut(ref colorCube, medianColor, re, gs, ge, bs, be, cuts, ref over);
+                    break;
+                default:
+                    return;
+            }
+        }
+
+        private void ApplyMedian_Click(object sender, RoutedEventArgs e)
+        {
+            if (editedImg != null && !medianError)
+            {
+                editedImg.CopyPixels(pixels, stride, 0);
+
+                int colors = int.Parse(MedianColorNo.Text);
+                int cuts = (int)Math.Log(colors, 2);
+                int over = (int)(colors - Math.Pow(2, cuts)+1);
+
+                byte[] colorCube = new byte[pixels.Length];
+                Array.Copy(pixels, 0, colorCube, 0, pixels.Length);
+                medianCut(ref colorCube, 0, 255, 0, 255, 0, 255, cuts, ref over);
+
+                for (int i = 0; i < pixels.Length; i += 4)
+                {
+                    pixels[i] = colorCube[i];
+                    pixels[i + 1] = colorCube[i + 1];
+                    pixels[i + 2] = colorCube[i + 2];
+                }
+
+                editedImg.WritePixels(new Int32Rect(0, 0, width, height), pixels, stride, 0);
             }
         }
 
@@ -335,11 +641,14 @@ namespace _CG_Filters
             }
         }
 
+
         private void setError(TextBox tb, bool set)
         {
             if (set)
             {
-                if (tb.Text != "-" && tb.Text!="") Keyboard.ClearFocus();
+                int res;
+                bool parsed = int.TryParse(tb.Text, out res);
+                if (tb.Text != "-" && tb.Text != "" && !parsed) Keyboard.ClearFocus();
                 tb.BorderThickness = new Thickness(2);
                 tb.BorderBrush = Brushes.Red;
 
@@ -365,6 +674,8 @@ namespace _CG_Filters
             }
         }
 
+
+
         //refactor the kernels, the custom take these values later
         private void DivOffChanged(object sender, TextChangedEventArgs e)
         {
@@ -373,7 +684,7 @@ namespace _CG_Filters
             if (tb.Text != null && Decimal.TryParse(tb.Text, out res))
             {
                 setError(tb, false);
-                if (settingsUserChange && checkedNew == false && checkedCustom==false && tableChanged == false)
+                if (settingsUserChange && checkedNew == false && checkedCustom == false && tableChanged == false)
                 {
                     kernelFactory.Refactor(ref currentKernel, (int)ColsSlider.Value, (int)RowsSlider.Value, (int)AnchorX.Value, (int)AnchorY.Value, int.Parse(Offset.Text), int.Parse(Divisor.Text));
                 }
@@ -453,10 +764,10 @@ namespace _CG_Filters
 
         private void DisplayKernel(object o)
         {
-            int col=0, row=0, anchorx=0, anchory=0;
-            bool larger=false;
+            int col = 0, row = 0, anchorx = 0, anchory = 0;
+            bool larger = false;
 
-            int[] values=setControls(o, ref col, ref row, ref anchorx, ref anchory, ref larger);
+            int[] values = setControls(o, ref col, ref row, ref anchorx, ref anchory, ref larger);
 
             KernelTable.Children.Clear();
             KernelTable.RowDefinitions.Clear();
@@ -491,7 +802,7 @@ namespace _CG_Filters
                         {
                             txt.Text = (values[k * values[0] + l + 1]).ToString();
                             if ((++l % values[0] == 0) && larger) { k++; l = 0; }
-                           
+
                         }
                     }
                     txt.Width = 20;
