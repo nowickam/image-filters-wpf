@@ -65,22 +65,40 @@ namespace _CG_Filters
             double e = Math.Exp(-((Math.Pow(x, 2) + Math.Pow(y, 2)) / (2 * Math.Pow(sd, 2))));
             return coeff * e;
         }
+
+        private void resetMenu()
+        {
+            CustomConv.Visibility = Visibility.Collapsed;
+            CustomConvBorder.Visibility = Visibility.Collapsed;
+            GammaBorder.Visibility = Visibility.Collapsed;
+            DitheringBorder.Visibility = Visibility.Collapsed;
+            MedianBorder.Visibility = Visibility.Collapsed;
+
+            checkedCustom = false;
+            checkedNew = false;
+            tableChanged = false;
+            grayscale = false;
+
+            ComputeBtn.IsEnabled = true;
+            SaveFilterBtn.IsEnabled = true;
+            ApplyFilterBtn.IsEnabled = true;
+
+            errors.Clear();
+            ditheringError = false;
+            medianError = false;
+            gammaError = false;
+        }
+
         private void LoadBtn_Click(object sender, RoutedEventArgs e)
         {
             OpenFileDialog dialog = new OpenFileDialog();
             dialog.Filter = "All (*.jpg;*.jpeg;*.png)|*.jpg;*.jpeg;*.png|" + "JPEG (*.jpg;*.jpeg)|*.jpg;*.jpeg|" + "PNG (*.png)|*.png";
             if (dialog.ShowDialog() == true)
             {
-                tableChanged = false;
-                checkedCustom = false;
-                checkedNew = false;
-                grayscale = false;
-                ditheringError = false;
-                gammaError = false;
-                medianError = false;
-
                 SaveBtn.IsEnabled = true;
                 ResetBtn.IsEnabled = true;
+
+                resetMenu();
 
                 name = dialog.SafeFileName;
                 name = name.Substring(0, name.LastIndexOf("."));
@@ -107,25 +125,7 @@ namespace _CG_Filters
 
         private void ResetBtn_Click(object sender, RoutedEventArgs e)
         {
-            checkedCustom = false;
-            checkedNew = false;
-            tableChanged = false;
-            grayscale = false;
-
-            ComputeBtn.IsEnabled = true;
-            SaveFilterBtn.IsEnabled = true;
-            ApplyFilterBtn.IsEnabled = true;
-
-            errors.Clear();
-            ditheringError = false;
-            medianError = false;
-            gammaError = false;
-
-            CustomConv.Visibility = Visibility.Collapsed;
-            CustomConvBorder.Visibility = Visibility.Collapsed;
-            GammaBorder.Visibility = Visibility.Collapsed;
-            DitheringBorder.Visibility = Visibility.Collapsed;
-            MedianBorder.Visibility = Visibility.Collapsed;
+            resetMenu();
 
             currentImg.CopyPixels(pixels, stride, 0);
             editedImg.WritePixels(new Int32Rect(0, 0, width, height), pixels, stride, 0);
@@ -168,7 +168,7 @@ namespace _CG_Filters
             }
         }
 
-        private void GammaTextChange(object sender, TextChangedEventArgs e)
+        private void NumericalValueCheck(object sender, TextChangedEventArgs e)
         {
             TextBox tb = (TextBox)e.Source;
             Decimal res;
@@ -176,12 +176,14 @@ namespace _CG_Filters
             if (tb.Text == null || !parsed)
             {
                 setError(tb, true);
-                gammaError = true;
+                if (tb.Name == "MedianColorNo") medianError = true;
+                else gammaError = true;
             }
             else
             {
                 setError(tb, false);
-                gammaError = false;
+                if (tb.Name == "MedianColorNo") medianError = false;
+                else gammaError = false;
             }
         }
 
@@ -315,14 +317,12 @@ namespace _CG_Filters
             if (tb.Text == null || !parsed || (res & (res - 1)) != 0)
             {
                 setError(tb, true);
-                if (tb.Name != "MedianColorNo") ditheringError = true;
-                else medianError = true;
+                ditheringError = true;
             }
             else
             {
                 setError(tb, false);
-                if (tb.Name != "MedianColorNo") ditheringError = false;
-                else medianError = false;
+                ditheringError = false;
             }
         }
 
@@ -404,6 +404,8 @@ namespace _CG_Filters
                 List<List<double>> breakpoints = new List<List<double>>();
                 int[] dithering_channels = new int[colors_count];
                 int levels;
+
+                //find the average breakpoints
                 for (int i = 0; i < colors_count; i++)
                 {
                     int res;
@@ -420,9 +422,9 @@ namespace _CG_Filters
                     breakpoints.Add(l);
                 }
 
+                //color the pixels 
                 for (int i = 0; i < breakpoints.Count; i++)
                 {
-                    Console.WriteLine(breakpoints[i].Count - 1);
                     for (int j = 0; j < pixels.Length; j++)
                     {
                         int k = 0;
@@ -445,12 +447,6 @@ namespace _CG_Filters
             }
         }
 
-        private static void swap(ref byte b1, ref byte b2)
-        {
-            byte temp = b1;
-            b1 = b2;
-            b2 = temp;
-        }
 
         private static bool inCube(byte[] colors, int i, int rs, int re,  int gs, int ge, int bs, int be)
         {
@@ -458,6 +454,7 @@ namespace _CG_Filters
                 return true;
             return false;
         }
+
 
         private void medianCut(ref byte[] colorCube, int rs, int re, int gs, int ge, int bs, int be, int cuts, ref int over)
         {

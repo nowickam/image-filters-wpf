@@ -6,7 +6,6 @@
         xmlns:local="clr-namespace:_CG_Filters"
         mc:Ignorable="d"
         Title="Image Filters" ResizeMode="NoResize" WindowState="Maximized">
-    <!--WindowState="Maximized"-->
     <Window.Resources>
         <Style x:Key="sliderRCStyle" TargetType="{x:Type Slider}">
             <Setter Property="TickPlacement" Value="BottomRight"/>
@@ -59,21 +58,21 @@
         
         <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,0,10,0">
             <DockPanel  VerticalAlignment="Stretch" HorizontalAlignment="Stretch" Grid.Column="0" Margin="10,10,20,10">
-                <Expander DockPanel.Dock="Top" Margin="0,0,0,30" Header="Functional filters">
+                <Expander DockPanel.Dock="Top" Margin="0,0,0,30" Header="Functional filters" IsExpanded="True">
                     <StackPanel Name="FuncFilters" Margin="5">
                         <Button Name="InvCB" Click="InvCB_Checked" >Inversion</Button>
                         <Button Name="BrightCB" Click="BrightCB_Checked" >Brightness correction</Button>
                         <Button Name="GammaCB"  Click="GammaCB_Checked" >Gamma correction</Button>
                         <Border Name="GammaBorder" BorderThickness="1" BorderBrush="LightGray" Visibility="Collapsed" Margin="5" Padding="5">
                             <DockPanel  Margin="5">
-                                <TextBox Name="GammaText" TextChanged="GammaTextChange" Margin="2" Width="150"/>
+                                <TextBox Name="GammaText" TextChanged="NumericalValueCheck" Margin="2" Width="150"/>
                                 <Button Name="GammaButton" Click="GammaApply" Margin="2" >Apply</Button>
                             </DockPanel>
                         </Border>
                         <Button Name="ContrCB" Click="ContrCB_Checked" >Contrast enhacement</Button>
                     </StackPanel>
                 </Expander>
-                <Expander DockPanel.Dock="Top" Margin="0,0,0,30" Header="Convolutional filters">
+                <Expander DockPanel.Dock="Top" Margin="0,0,0,30" Header="Convolutional filters" IsExpanded="True">
                     <StackPanel>
                         <StackPanel Name="ConvFilters" Margin="5">
                             <Button Name="BlurCB" Click="Conv_Checked" >Blur</Button>
@@ -144,7 +143,7 @@
                         </Border>
                     </StackPanel>
                 </Expander>
-                <Expander  DockPanel.Dock="Top" Margin="0,0,0,30"  Header="Dithering">
+                <Expander  DockPanel.Dock="Top" Margin="0,0,0,30"  Header="Dithering" IsExpanded="True">
                     <StackPanel>
                         <Button Name="DitheringBtn" Click="DitheringBtn_Click">Thresholding</Button>
                         <Border Name="DitheringBorder" BorderThickness="1" BorderBrush="LightGray" Visibility="Collapsed" Margin="5" Padding="5">
@@ -158,7 +157,6 @@
                                     <RowDefinition/>
                                     <RowDefinition/>
                                 </Grid.RowDefinitions>
-                                <Button Name="GrayscaleBtn" Click="GrayscaleBtn_Click" Grid.ColumnSpan="2" Margin="10">Grayscale</Button>
                                 <Label Grid.Row="1">Colors per channel (K): </Label>
                                 <StackPanel Orientation="Horizontal" Name="ChannelsContainer" Grid.Row="1" Grid.Column="1"/>
                                 <Button Name="ApplyDithering" Grid.Row="2" Grid.ColumnSpan="2" Click="ApplyDithering_Click">Apply</Button>
@@ -166,7 +164,7 @@
                         </Border>
                     </StackPanel>
                 </Expander>
-                <Expander Margin="0,0,0,30" DockPanel.Dock="Top" Header="Color quantization">
+                <Expander Margin="0,0,0,30" DockPanel.Dock="Top" Header="Color quantization" IsExpanded="True">
                     <StackPanel>
                         <Button Name="MedianBtn" Click="MedianBtn_Click">Median cut</Button>
                         <Border Name="MedianBorder" BorderThickness="1" BorderBrush="LightGray" Visibility="Collapsed" Margin="5" Padding="5">
@@ -180,12 +178,13 @@
                                     <RowDefinition/>
                                 </Grid.RowDefinitions>
                                 <Label Margin="15,0,0,0">Number of colors (K):</Label>
-                                <TextBox Name="MedianColorNo" Grid.Column="1" Margin="25,0,25,0"  MinWidth="20" Height="20"/>
+                                <TextBox Name="MedianColorNo" Grid.Column="1" Margin="25,0,25,0"  MinWidth="20" Height="20" TextChanged="NumericalValueCheck"/>
                                 <Button Name="ApplyMedian" Grid.Row="1" Grid.ColumnSpan="2" Click="ApplyMedian_Click">Apply</Button>
                             </Grid>
                         </Border>
                     </StackPanel>
                 </Expander>
+                <Button Name="GrayscaleBtn" Click="GrayscaleBtn_Click" DockPanel.Dock="Top"  Height="25">Grayscale</Button>
                 <Button Name="ResetBtn" DockPanel.Dock="Bottom" Width="230" Height="30" VerticalAlignment="Bottom" Click="ResetBtn_Click" IsEnabled="False">RESET</Button>
             </DockPanel>
         </ScrollViewer>
