@@ -301,6 +301,26 @@ namespace _CG_Filters
             }
         }
 
+        private void GrayscaleBtn_Click(object sender, RoutedEventArgs e)
+        {
+            if (editedImg != null)
+            {
+                editedImg.CopyPixels(pixels, stride, 0);
+                for (int i = 0; i < pixels.Length; i += 4)
+                {
+                    int val = (pixels[i] + pixels[i + 1] + pixels[i + 2]) / 3;
+                    pixels[i] = (byte)(val);
+                    pixels[i + 1] = (byte)(val);
+                    pixels[i + 2] = (byte)(val);
+                }
+                editedImg.WritePixels(new Int32Rect(0, 0, width, height), pixels, stride, 0);
+                grayscale = true;
+                AddChannels();
+            }
+        }
+
+        /////// DITHERING /////////
+
         private void DitheringBtn_Click(object sender, RoutedEventArgs e)
         {
             if (editedImg != null)
@@ -332,29 +352,65 @@ namespace _CG_Filters
             }
         }
 
-        private void GrayscaleBtn_Click(object sender, RoutedEventArgs e)
+        private void ApplyDithering_Click(object sender, RoutedEventArgs e)
         {
-            if (editedImg != null)
+            if (editedImg != null && !ditheringError)
             {
                 editedImg.CopyPixels(pixels, stride, 0);
-                for (int i = 0; i < pixels.Length; i += 4)
+
+                int colors_count = ChannelsContainer.Children.Count / 2;
+                //list of breakpoints positions (averages; for all three or one channel)
+                List<List<double>> breakpoints = new List<List<double>>();
+                int[] dithering_channels = new int[colors_count];
+                int levels, over;
+
+                //find the average breakpoints, loop on all the channels
+                for (int i = 0; i < colors_count; i++)
                 {
-                    int val = (pixels[i] + pixels[i + 1] + pixels[i + 2]) / 3;
-                    pixels[i] = (byte)(val);
-                    pixels[i + 1] = (byte)(val);
-                    pixels[i + 2] = (byte)(val);
+                    int res;
+                    if (int.TryParse(((TextBox)ChannelsContainer.Children[2 * i + 1]).Text, out res))
+                        dithering_channels[i] = res;
+                    else return;
+                    List<double> l = new List<double>();
+                    //depth of the recursion tree
+                    levels = (int)(Math.Log(dithering_channels[i], 2));
+                    over = (int)(dithering_channels[i] - Math.Pow(2,levels));
+                    //2-i because of bgra format
+                    findBreakpoint(levels, 2 - i, 0, 256, ref l, ref over);
+                    l.Sort();
+                    l.Add(255);
+                    breakpoints.Add(l);
                 }
+
+
+                //color the pixels 
+                for (int i = 0; i < breakpoints.Count; i++)
+                {
+                    int j;
+                    if (breakpoints.Count == 1) j = 0;
+                    else j = 2 - i;
+                    for (; j < pixels.Length; j+=4)
+                    {
+                        int k = 0;
+                        while (pixels[j] > breakpoints[i][k])
+                            k++;
+
+                        pixels[j] = (byte)(1.0 * 255 * k / (breakpoints[i].Count - 1));
+                        if (breakpoints.Count == 1 && j<pixels.Length-2)
+                        {
+                            pixels[j+1] = (byte)(1.0 * 255 * k / (breakpoints[i].Count - 1));
+                            pixels[j+2] = (byte)(1.0 * 255 * k / (breakpoints[i].Count - 1));
+                        }
+                    }
+                }
+
                 editedImg.WritePixels(new Int32Rect(0, 0, width, height), pixels, stride, 0);
-                grayscale = true;
-                AddChannels();
             }
         }
 
-        /////// DITHERING /////////
-
         private void findBreakpoint(int levels, int rgb, int start, int end, ref List<double> breakpoints, ref int over)
         {
-            if (levels < 1 && over == 0)
+            if (levels == 0 && over == 0)
             {
                 return;
             }
@@ -371,57 +427,10 @@ namespace _CG_Filters
                 }
                 sum = (int)(1.0 * sum / count);
                 breakpoints.Add(sum);
-                if(levels>0)levels--;
                 if (levels == 0 && over > 0) over--;
+                if (levels>0)levels--;
                 findBreakpoint(levels, rgb, start, sum, ref breakpoints, ref over);
                 findBreakpoint(levels, rgb, sum, end, ref breakpoints, ref over);
-            }
-        }
-
-        private void ApplyDithering_Click(object sender, RoutedEventArgs e)
-        {
-            if (editedImg != null && !ditheringError)
-            {
-                editedImg.CopyPixels(pixels, stride, 0);
-
-                int colors_count = ChannelsContainer.Children.Count / 2;
-                //list of breakpoints positions (averages; for all three or one channel)
-                List<List<double>> breakpoints = new List<List<double>>();
-                int[] dithering_channels = new int[colors_count];
-                int levels,over;
-
-                //find the average breakpoints, loop on all the channels
-                for (int i = 0; i < colors_count; i++)
-                {
-                    int res;
-                    if (int.TryParse(((TextBox)ChannelsContainer.Children[2 * i + 1]).Text, out res))
-                        dithering_channels[i] = res;
-                    else return;
-                    List<double> l = new List<double>();
-                    //depth of the recursion tree
-                    levels = (int)(Math.Log(dithering_channels[i], 2));
-                    over = (int)(dithering_channels[i] - Math.Pow(levels, 2));
-                    //2-i because of bgra format
-                    findBreakpoint(levels, 2 - i, 0, 256, ref l,ref over);
-                    l.Sort();
-                    l.Add(255);
-                    breakpoints.Add(l);
-                }
-
-                //color the pixels 
-                for (int i = 0; i < breakpoints.Count; i++)
-                {
-                    for (int j = 0; j < pixels.Length; j++)
-                    {
-                        int k = 0;
-                        while (pixels[j] > breakpoints[i][k])
-                            k++;
-
-                        pixels[j] = (byte)(1.0 * 255 * k / (breakpoints[i].Count - 1));
-                    }
-                }
-
-                editedImg.WritePixels(new Int32Rect(0, 0, width, height), pixels, stride, 0);
             }
         }
 
