@@ -173,17 +173,19 @@ namespace _CG_Filters
             TextBox tb = (TextBox)e.Source;
             Decimal res;
             bool parsed = Decimal.TryParse(tb.Text, out res);
-            if (tb.Text == null || !parsed)
+            if (tb.Text == null || !parsed || res==0)
             {
                 setError(tb, true);
                 if (tb.Name == "MedianColorNo") medianError = true;
-                else gammaError = true;
+                else if(tb.Name=="GammaText") gammaError = true;
+                else ditheringError = true;
             }
             else
             {
                 setError(tb, false);
                 if (tb.Name == "MedianColorNo") medianError = false;
-                else gammaError = false;
+                else if (tb.Name == "GammaText") gammaError = false;
+                else ditheringError = false;
             }
         }
 
@@ -198,7 +200,7 @@ namespace _CG_Filters
 
         private void GammaApply(object sender, RoutedEventArgs e)
         {
-            if (editedImg != null && gammaError)
+            if (editedImg != null && !gammaError)
             {
                 double gamma = double.Parse(GammaText.Text);
                 editedImg.CopyPixels(pixels, stride, 0);
@@ -280,7 +282,6 @@ namespace _CG_Filters
                         string name = ((Button)e.Source).Name;
                         int index = int.Parse(name.Substring(name.LastIndexOf("_") + 1));
                         currentKernel = kernelList.ElementAt(index);
-                        Console.WriteLine(currentKernel);
                     }
                     //predefined kernel => get it from the factory
                     else
@@ -309,23 +310,6 @@ namespace _CG_Filters
             }
         }
 
-        private void PowerOfTwoCheck(object sender, TextChangedEventArgs e)
-        {
-            TextBox tb = (TextBox)e.Source;
-            int res;
-            bool parsed = int.TryParse(tb.Text, out res);
-            if (tb.Text == null || !parsed || (res & (res - 1)) != 0)
-            {
-                setError(tb, true);
-                ditheringError = true;
-            }
-            else
-            {
-                setError(tb, false);
-                ditheringError = false;
-            }
-        }
-
         private void AddChannels()
         {
             ChannelsContainer.Children.Clear();
@@ -338,7 +322,7 @@ namespace _CG_Filters
                 txt.MinWidth = 20;
                 txt.Height = 20;
                 txt.TextAlignment = TextAlignment.Center;
-                txt.TextChanged += PowerOfTwoCheck;
+                txt.TextChanged += NumericalValueCheck;
                 Label l = new Label();
                 l.FontSize = 10;
                 if (grayscale) { l.Content = "B/W"; }
@@ -366,16 +350,16 @@ namespace _CG_Filters
             }
         }
 
-        private void findBreakpoint(int levels, int rgb, int start, int end, ref List<double> breakpoints)
+        /////// DITHERING /////////
+
+        private void findBreakpoint(int levels, int rgb, int start, int end, ref List<double> breakpoints, ref int over)
         {
-            if (levels < 1)
+            if (levels < 1 && over == 0)
             {
-                //Console.WriteLine("STOP: " + levels);
                 return;
             }
             else
             {
-                //Console.WriteLine("LEVEL: " + levels + "start,stop: "+start+" "+end);
                 int sum = 0, count = 0;
                 for (int i = rgb; i < pixels.Length; i += 4)
                 {
@@ -387,10 +371,10 @@ namespace _CG_Filters
                 }
                 sum = (int)(1.0 * sum / count);
                 breakpoints.Add(sum);
-                //Console.WriteLine(sum);
-                levels--;
-                findBreakpoint(levels, rgb, start, sum, ref breakpoints);
-                findBreakpoint(levels, rgb, sum, end, ref breakpoints);
+                if(levels>0)levels--;
+                if (levels == 0 && over > 0) over--;
+                findBreakpoint(levels, rgb, start, sum, ref breakpoints, ref over);
+                findBreakpoint(levels, rgb, sum, end, ref breakpoints, ref over);
             }
         }
 
@@ -401,11 +385,12 @@ namespace _CG_Filters
                 editedImg.CopyPixels(pixels, stride, 0);
 
                 int colors_count = ChannelsContainer.Children.Count / 2;
+                //list of breakpoints positions (averages; for all three or one channel)
                 List<List<double>> breakpoints = new List<List<double>>();
                 int[] dithering_channels = new int[colors_count];
-                int levels;
+                int levels,over;
 
-                //find the average breakpoints
+                //find the average breakpoints, loop on all the channels
                 for (int i = 0; i < colors_count; i++)
                 {
                     int res;
@@ -415,8 +400,9 @@ namespace _CG_Filters
                     List<double> l = new List<double>();
                     //depth of the recursion tree
                     levels = (int)(Math.Log(dithering_channels[i], 2));
+                    over = (int)(dithering_channels[i] - Math.Pow(levels, 2));
                     //2-i because of bgra format
-                    findBreakpoint(levels, 2 - i, 0, 256, ref l);
+                    findBreakpoint(levels, 2 - i, 0, 256, ref l,ref over);
                     l.Sort();
                     l.Add(255);
                     breakpoints.Add(l);
@@ -439,6 +425,8 @@ namespace _CG_Filters
             }
         }
 
+        /////// MEDIAN /////////
+
         private void MedianBtn_Click(object sender, RoutedEventArgs e)
         {
             if (editedImg != null)
@@ -458,8 +446,6 @@ namespace _CG_Filters
 
         private void medianCut(ref byte[] colorCube, int rs, int re, int gs, int ge, int bs, int be, int cuts, ref int over)
         {
-            //Console.WriteLine("\nCUTS: " + cuts);
-            //Console.WriteLine("DIMS: " + rs + " " + re + " " + gs + " " + ge + " " + bs + " " + be);
             if (cuts == 0 && over==0)
             {
                 //color the boxes
@@ -481,10 +467,6 @@ namespace _CG_Filters
                 int averageG = (int)(1.0 * sumG / count);
                 int averageB = (int)(1.0 * sumB / count);
 
-                
-                //Console.WriteLine("AVERAGES: "+averageR + " " + averageG + " " + averageB);
-                //Console.WriteLine("COUNT COUNTSUM: " + count+" "+countSum);
-
                 for (int i = 0; i < colorCube.Length; i += 4)
                 {
                     if (inCube(colorCube, i, rs, re,  gs, ge, bs, be))
@@ -494,7 +476,6 @@ namespace _CG_Filters
                         colorCube[i] = (byte)averageB;
                     }
                 }
-                //Console.WriteLine("COLOR");
                 return;
             }
 
@@ -519,7 +500,6 @@ namespace _CG_Filters
             }
             //calculate the range
             int distR = maxR - minR, distB = maxB - minB, distG = maxG - minG;
-            //Console.WriteLine("DIST: " + distR + " " + distG + " " + distB + " ");
 
             //determine max range
             int medianChannel;
@@ -542,7 +522,6 @@ namespace _CG_Filters
 
             if(cuts>0)cuts--;
             if(cuts==0 && over>0)over--;
-            //System.Console.WriteLine("OVER: " + over);
 
             switch (medianChannel)
             {
