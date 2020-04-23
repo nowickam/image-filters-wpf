@@ -26,7 +26,7 @@ namespace _CG_Filters
         private WriteableBitmap editedImg = null;
         private string name;
         private int height, width, stride;
-        private byte[] pixels;
+        private byte[] pixels,pixelsY,pixelsCr,pixelsCb;
 
         private KernelFactory kernelFactory;
         private Kernel currentKernel;
@@ -372,7 +372,7 @@ namespace _CG_Filters
                         dithering_channels[i] = res;
                     else return;
                     List<double> l = new List<double>();
-                    //depth of the recursion tree
+                    //depth of the recursion tree with additional steps if not a power of two
                     levels = (int)(Math.Log(dithering_channels[i], 2));
                     over = (int)(dithering_channels[i] - Math.Pow(2,levels));
                     //2-i because of bgra format
@@ -626,6 +626,66 @@ namespace _CG_Filters
             }
         }
 
+        private static double Lerp(double a, double b, double t)
+        {
+            return (1 - t) * a + t * b;
+        }
+
+
+        private void YCbCr_Click(object sender, RoutedEventArgs e)
+        {
+            if (editedImg != null)
+            {
+                pixelsY = new byte[height * stride];
+                pixelsCb = new byte[height * stride];
+                pixelsCr = new byte[height * stride];
+
+                editedImg.CopyPixels(pixelsY, stride, 0);
+                editedImg.CopyPixels(pixelsCb, stride, 0);
+                editedImg.CopyPixels(pixelsCr, stride, 0);
+
+                ImgPanel.Children.Clear();
+                Image img1 = new Image();
+                img1.Name = "Y";
+                Image img2 = new Image();
+                img2.Name = "Cb";
+                Image img3 = new Image();
+                img3.Name = "Cr";
+
+                for (int i = 0; i < pixels.Length; i += 4)
+                {
+                    int Y = (pixelsY[i] + pixelsY[i + 1] + pixelsY[i + 2]) / 3;
+
+                    pixelsY[i] = (byte)(Y);
+                    pixelsY[i + 1] = (byte)(Y);
+                    pixelsY[i + 2] = (byte)(Y);
+
+                    pixelsCb[i+2] = (byte)(127);
+                    pixelsCb[i + 1] = (byte)(Lerp(255, 0, 1.0 * pixelsCb[i + 1] / 255));
+                    pixelsCb[i] = (byte)(Lerp(0, 255, 1.0 * pixelsCb[i] / 255));
+
+                    pixelsCr[i] = (byte)(127);
+                    pixelsCr[i + 1] = (byte)(Lerp(255, 0, 1.0 * pixelsCr[i + 1] / 255));
+                    pixelsCr[i + 2] = (byte)(Lerp(0, 255, 1.0 * pixelsCr[i + 2] / 255));
+                }
+
+                WriteableBitmap Bitmap1 = new WriteableBitmap(currentImg);
+                WriteableBitmap Bitmap2 = new WriteableBitmap(currentImg);
+                WriteableBitmap Bitmap3 = new WriteableBitmap(currentImg);
+
+                Bitmap1.WritePixels(new Int32Rect(0, 0, width, height), pixelsY, stride, 0);
+                Bitmap2.WritePixels(new Int32Rect(0, 0, width, height), pixelsCb, stride, 0);
+                Bitmap3.WritePixels(new Int32Rect(0, 0, width, height), pixelsCr, stride, 0);
+
+                img1.Source = Bitmap1;
+                img2.Source = Bitmap2;
+                img3.Source = Bitmap3;
+
+                ImgPanel.Children.Add(img1);
+                ImgPanel.Children.Add(img2);
+                ImgPanel.Children.Add(img3);
+            }
+        }
 
         private void setError(TextBox tb, bool set)
         {

@@ -184,6 +184,7 @@
                         </Border>
                     </StackPanel>
                 </Expander>
+                <Button Name="YCbCr" Click="YCbCr_Click" DockPanel.Dock="Top" Height="25">YCbCr</Button>
                 <Button Name="GrayscaleBtn" Click="GrayscaleBtn_Click" DockPanel.Dock="Top"  Height="25">Grayscale</Button>
                 <Button Name="ResetBtn" DockPanel.Dock="Bottom" Width="230" Height="30" VerticalAlignment="Bottom" Click="ResetBtn_Click" IsEnabled="False">RESET</Button>
             </DockPanel>
